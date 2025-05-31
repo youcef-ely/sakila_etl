@@ -21,9 +21,7 @@ services:
     container_name: mysql-warehouse
     environment:
       MYSQL_ROOT_PASSWORD: warehousepass
-      MYSQL_DATABASE: warehouse_db
-      MYSQL_USER: warehouse_user
-      MYSQL_PASSWORD: warehouse_pass
+      MYSQL_DATABASE: sakila_dw
     ports:
       - "3307:3306"
     volumes:
