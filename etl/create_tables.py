@@ -6,7 +6,6 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, Date, Text
 
 dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
 load_dotenv(dotenv_path)
-print(os.environ.get('MYSQL_WAREHOUSE_HOST'))
 
 MYSQL_WAREHOUSE_HOST = os.environ.get('MYSQL_WAREHOUSE_HOST')  
 MYSQL_WAREHOUSE_DATABASE = os.environ.get('MYSQL_WAREHOUSE_DATABASE')
@@ -15,6 +14,8 @@ MYSQL_WAREHOUSE_PORT= os.environ.get('MYSQL_WAREHOUSE_PORT')
 MYSQL_WAREHOUSE_PASSWORD = os.environ.get('MYSQL_WAREHOUSE_PASSWORD')
 
 
+
+DATABASE_URL = 'sqlite:///sakila_dw.db'
 Base = declarative_base()
 
 class DimDate(Base):
@@ -68,7 +69,9 @@ class FactRental(Base):
 
 def create_datawarehouse():
     engine = create_engine(
-                f'mysql+mysqlconnector://{MYSQL_WAREHOUSE_USER}:{MYSQL_WAREHOUSE_PASSWORD}@{MYSQL_WAREHOUSE_HOST}:{MYSQL_WAREHOUSE_PORT}/{MYSQL_WAREHOUSE_DATABASE}'
+                DATABASE_URL,
+                #f'mysql+mysqlconnector://{MYSQL_WAREHOUSE_USER}:{MYSQL_WAREHOUSE_PASSWORD}@{MYSQL_WAREHOUSE_HOST}:{MYSQL_WAREHOUSE_PORT}/{MYSQL_WAREHOUSE_DATABASE}'
+                echo=True
             )
 
     Base.metadata.create_all(engine)
