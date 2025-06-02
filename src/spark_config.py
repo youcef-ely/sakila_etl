@@ -16,7 +16,7 @@ def get_spark_config():
     # Paths to both JARs
     base_dir = os.path.dirname(__file__)
     root_dir = os.path.abspath(os.path.join(base_dir, '..'))
-    mysql_jar = os.path.join(root_dir, 'jars', 'mysql-connector-java-8.0.33.jar')
+    mysql_jar = os.path.join(root_dir, 'jars', 'mysql-connector-j-8.0.33.jar')
     sqlite_jar = os.path.join(root_dir, 'jars', 'sqlite-jdbc-3.42.0.0.jar')
     
     # Join both JARs
@@ -34,30 +34,30 @@ def get_spark_config():
     return spark_session
 
 
-
-def get_database_config(db_type='source'):
+def get_database_config(db_type='sakila'):
     """
     Returns the connection configuration dictionary for different database types.
     """
-    if db_type == 'source':
+    if db_type == 'sakila':
         return {
             "url": f"jdbc:mysql://{os.environ.get('MYSQL_SOURCE_HOST')}:{os.environ.get('MYSQL_SOURCE_PORT')}/{os.environ.get('MYSQL_SOURCE_DATABASE')}",
             "user": os.environ.get('MYSQL_SOURCE_USER'),
-            "password": os.environ.get('MYSQL_SOURCE_PASSWORD'),
+            # Fixed: Removed extra underscore in password key
+            "password": os.environ.get('MYSQL_SOURCE_ROOT_PASSWORD'),
             "driver": "com.mysql.cj.jdbc.Driver"
         }
 
-    elif db_type == 'datawarehouse':
+    elif db_type == 'sakila_warehouse':
         return {
             "url": f"jdbc:mysql://{os.environ.get('MYSQL_WAREHOUSE_HOST')}:{os.environ.get('MYSQL_WAREHOUSE_PORT')}/{os.environ.get('MYSQL_WAREHOUSE_DATABASE')}",
             "user": os.environ.get('MYSQL_WAREHOUSE_USER'),
-            "password": os.environ.get('MYSQL_WAREHOUSE_PASSWORD'),
+            "password": os.environ.get('MYSQL_WAREHOUSE_ROOT_PASSWORD'),
             "driver": "com.mysql.cj.jdbc.Driver"
         }
 
-    elif db_type == 'datawarehouse_test':
+    elif db_type == 'sakila_warehouse_test':
         # Full path to SQLite test database
-        sqlite_path = os.path.join(os.path.dirname(__file__), '..', 'sql', 'test', 'sakila_dw.db')
+        sqlite_path = os.path.join(os.path.dirname(__file__), '..', 'sql', 'test', 'sakila_warehouse_test.db')
         return {
             "url": f"jdbc:sqlite:{sqlite_path}",
             "driver": "org.sqlite.JDBC"

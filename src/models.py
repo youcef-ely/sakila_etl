@@ -1,21 +1,7 @@
-import os
-import pretty_errors
-from dotenv import load_dotenv
+# models.py
 from sqlalchemy.orm import declarative_base, relationship
-from sqlalchemy import create_engine, Column, Integer, String, Float, Date, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Date, Text, ForeignKey
 
-dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
-load_dotenv(dotenv_path)
-
-MYSQL_WAREHOUSE_HOST = os.environ.get('MYSQL_WAREHOUSE_HOST')  
-MYSQL_WAREHOUSE_DATABASE = os.environ.get('MYSQL_WAREHOUSE_DATABASE')
-MYSQL_WAREHOUSE_USER = os.environ.get('MYSQL_WAREHOUSE_USER')
-MYSQL_WAREHOUSE_PORT= os.environ.get('MYSQL_WAREHOUSE_PORT')
-MYSQL_WAREHOUSE_PASSWORD = os.environ.get('MYSQL_WAREHOUSE_PASSWORD')
-
-
-
-DATABASE_URL = 'sqlite:///sakila_dw.db'
 Base = declarative_base()
 
 class DimDate(Base):
@@ -39,7 +25,7 @@ class DimFilm(Base):
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=False)
     length = Column(Integer)
-    category = Column(String(50))  # lowercase for naming consistency
+    category = Column(String(50))
 
 class DimClient(Base):
     __tablename__ = 'dim_client'
@@ -65,16 +51,3 @@ class FactRental(Base):
     film = relationship("DimFilm")
     store = relationship("DimStore")
     date = relationship("DimDate")
-
-
-def create_datawarehouse():
-    engine = create_engine(
-                DATABASE_URL,
-                #f'mysql+mysqlconnector://{MYSQL_WAREHOUSE_USER}:{MYSQL_WAREHOUSE_PASSWORD}@{MYSQL_WAREHOUSE_HOST}:{MYSQL_WAREHOUSE_PORT}/{MYSQL_WAREHOUSE_DATABASE}'
-                echo=True
-            )
-
-    Base.metadata.create_all(engine)
-
-if __name__ == "__main__":
-    create_datawarehouse()
