@@ -1,3 +1,8 @@
+<<<<<<< HEAD
+=======
+version: '3.8' # Use a recent Docker Compose version
+
+>>>>>>> b129685 (Changed to Pandas as 1st version)
 services:
   # Source MySQL Database
   mysql-source:
@@ -10,10 +15,19 @@ services:
       - "3306:3306"
     volumes:
       - mysql_source_data:/var/lib/mysql
+<<<<<<< HEAD
       - ./sql/source:/docker-entrypoint-initdb.d
       - shared-data:/opt/airflow/shared
+=======
+      - ./sql/source:/docker-entrypoint-initdb.d # Ensure your SQL init scripts are here
+>>>>>>> b129685 (Changed to Pandas as 1st version)
     networks:
       - etl_network
+    healthcheck: # Added healthcheck for better dependency management
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-psourcepass"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
 
   # Data Warehouse MySQL
   mysql-warehouse:
@@ -23,12 +37,17 @@ services:
       MYSQL_ROOT_PASSWORD: warehousepass
       MYSQL_DATABASE: sakila_dw
     ports:
-      - "3307:3306"
+      - "3307:3306" # Mapped to 3307 on host to avoid conflict with source
     volumes:
       - mysql_warehouse_data:/var/lib/mysql
-      - ./sql/warehouse:/docker-entrypoint-initdb.d
+      - ./sql/warehouse:/docker-entrypoint-initdb.d # Ensure your SQL init scripts are here
     networks:
       - etl_network
+    healthcheck: # Added healthcheck
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pwarehousepass"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
 
   # Airflow Database
   postgres:
@@ -42,24 +61,34 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - etl_network
+    healthcheck: # Added healthcheck
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # Airflow Webserver
   airflow-webserver:
-    build: .
+    build: . # Assumes a Dockerfile in the current directory for Airflow
     container_name: airflow-webserver
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy # Wait for postgres to be healthy
     environment:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
-      - AIRFLOW__CORE__FERNET_KEY=your-fernet-key-here
+      - AIRFLOW__CORE__FERNET_KEY=your-fernet-key-here # IMPORTANT: Change this to a strong, unique key!
       - AIRFLOW__WEBSERVER__DEFAULT_USER_USERNAME=admin
       - AIRFLOW__WEBSERVER__DEFAULT_USER_PASSWORD=admin
+      # Spark-related environment variables for Airflow to know where Spark is
+      - SPARK_HOME=/opt/spark/spark-3.5.0-bin-hadoop3 # Adjust if your Spark version/path differs
+      - HADOOP_CONF_DIR=/etc/hadoop
+      - YARN_CONF_DIR=/etc/hadoop
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs
       - ./airflow/plugins:/opt/airflow/plugins
-      - ./spark:/opt/spark
+      - ./spark:/opt/spark # Mount your Spark client/apps directory
       - ./data:/opt/data
       - shared-data:/opt/airflow/shared
     ports:
@@ -70,25 +99,36 @@ services:
 
   # Airflow Scheduler
   airflow-scheduler:
-    build: .
+    build: . # Assumes a Dockerfile in the current directory for Airflow
     container_name: airflow-scheduler
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy # Wait for postgres to be healthy
+      airflow-webserver:
+        condition: service_started # Webserver needs to be up for database init
     environment:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
-      - AIRFLOW__CORE__FERNET_KEY=your-fernet-key-here
+      - AIRFLOW__CORE__FERNET_KEY=your-fernet-key-here # IMPORTANT: Use the same key as webserver!
+      # Spark-related environment variables for Airflow to know where Spark is
+      - SPARK_HOME=/opt/spark/spark-3.5.0-bin-hadoop3 # Adjust if your Spark version/path differs
+      - HADOOP_CONF_DIR=/etc/hadoop
+      - YARN_CONF_DIR=/etc/hadoop
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs
       - ./airflow/plugins:/opt/airflow/plugins
-      - ./spark:/opt/spark
+      - ./spark:/opt/spark # Mount your Spark client/apps directory
       - ./data:/opt/data
       - shared-data:/opt/airflow/shared
     command: scheduler
     networks:
       - etl_network
 
+<<<<<<< HEAD
+=======
+  
+>>>>>>> b129685 (Changed to Pandas as 1st version)
 volumes:
   mysql_source_data:
   mysql_warehouse_data:
