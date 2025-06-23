@@ -1,0 +1,14 @@
+2025-06-23 17:53:17,803 - root - INFO - sakila Database connection established successfully
+2025-06-23 17:55:20,991 - root - INFO - sakila Database connection established successfully
+2025-06-23 17:56:16,021 - root - INFO - sakila Database connection established successfully
+2025-06-23 17:59:27,727 - root - INFO - sakila Database connection established successfully
+2025-06-23 18:01:48,372 - root - INFO - sakila Database connection established successfully
+2025-06-23 18:03:16,629 - root - INFO - sakila Database connection established successfully
+2025-06-23 18:04:22,742 - root - INFO - sakila Database connection established successfully
+2025-06-23 18:05:55,681 - root - INFO - sakila Database connection established successfully
+2025-06-23 18:06:15,073 - root - INFO - sakila Database connection established successfully
+2025-06-23 18:07:45,901 - root - INFO - sakila Database connection established successfully
+2025-06-23 18:11:30,847 - root - INFO - sakila Database connection established successfully
+2025-06-23 18:11:46,914 - root - INFO - sakila Database connection established successfully
+2025-06-23 18:11:46,953 - root - INFO - sakila_dw Database connection for loading established successfully
+2025-06-23 18:11:46,990 - root - INFO - Loading into dim_client successfully!

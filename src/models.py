@@ -30,13 +30,13 @@ class DimFilm(Base):
 class DimClient(Base):
     __tablename__ = 'dim_client'
     customer_key = Column(Integer, primary_key=True)
-    store_id = Column(Integer, ForeignKey('dim_store.store_key'))
+    store_id = Column(Integer)
     full_name = Column(String(100))
     email = Column(String(100), nullable=False)
     city = Column(String(50))
     state = Column(String(50))
+    country = Column(String(50))
 
-    store = relationship("DimStore", backref="clients")
 
 class FactRental(Base):
     __tablename__ = 'fact_rental'
