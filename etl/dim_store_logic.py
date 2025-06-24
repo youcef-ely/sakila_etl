@@ -77,9 +77,8 @@ def load_dimension_table(df: pd.DataFrame, engine, table_name: str = 'dim_store'
         logger.error(f"Failed to load data into `{table_name}`: {e}")
         raise
 
-
 engine = create_db_engine(source_db_config)
-loaded_data = extract_store_data(engine)
-transformed_data = transform_store_data(loaded_data)
-
-print(transformed_data)
+raw_data = extract_store_data(engine)
+transformed_data = transform_store_data(raw_data)
+engine2 = create_db_engine(warehouse_db_config)
+load_dimension_table(transformed_data, engine2)

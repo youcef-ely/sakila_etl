@@ -55,15 +55,15 @@ def transform_date_data(df: pd.DataFrame) -> pd.DataFrame:
     
     # Generate date keys after deduplication
     df['date_key'] = range(1, len(df) + 1)
-    df.reset_index(inplace=True)
-    
+
+    df.rename(columns={'rental_date': 'full_date', 'week': 'rental_week'}, inplace=True)    
     return df
 
 
 # =======================
 # Load
 # =======================
-def load_dimension_table(df: pd.DataFrame, engine, table_name: str = 'dim_store') -> None:
+def load_dimension_table(df: pd.DataFrame, engine, table_name: str = 'dim_date') -> None:
     """Loads transformed data into the data warehouse."""
     try:
         df.to_sql(name=table_name, con=engine, if_exists='append', index=False)
@@ -74,7 +74,8 @@ def load_dimension_table(df: pd.DataFrame, engine, table_name: str = 'dim_store'
 
 
 engine = create_db_engine(source_db_config)
-loaded_data = extract_date_data(engine)
-transformed_data = transform_date_data(loaded_data)
-
+raw_data = extract_date_data(engine)
+transformed_data = transform_date_data(raw_data)
 print(transformed_data)
+engine2 = create_db_engine(warehouse_db_config)
+load_dimension_table(transformed_data, engine2)

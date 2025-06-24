@@ -57,12 +57,14 @@ def transform_film_data(df: pd.DataFrame) -> pd.DataFrame:
     df.rename(columns={
         'name': 'category',
     }, inplace=True)
+
+    df.rename(columns={'film_id': 'film_key'}, inplace=True)
     return df
 
 # =======================
 # Load
 # =======================
-def load_dimension_table(df: pd.DataFrame, engine, table_name: str = 'dim_store') -> None:
+def load_dimension_table(df: pd.DataFrame, engine, table_name: str = 'dim_film') -> None:
     """Loads transformed data into the data warehouse."""
     try:
         df.to_sql(name=table_name, con=engine, if_exists='append', index=False)
@@ -73,7 +75,8 @@ def load_dimension_table(df: pd.DataFrame, engine, table_name: str = 'dim_store'
 
 
 engine = create_db_engine(source_db_config)
-loaded_data = extract_film_data(engine)
-transformed_data = transform_store_data(loaded_data)
-
+raw_data = extract_film_data(engine)
+transformed_data = transform_film_data(raw_data)
 print(transformed_data)
+engine2 = create_db_engine(warehouse_db_config)
+load_dimension_table(transformed_data, engine2)

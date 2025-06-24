@@ -1,4 +1,4 @@
-import os
+import os, sys
 import logging
 import pandas as pd
 import pretty_errors
@@ -27,7 +27,7 @@ warehouse_db_config = get_config('sakila_dw')
 # =======================
 # Extract
 # =======================
-def extract_customer_data(engine: Engine) -> pd.DataFrame:
+def extract_customer_data(engine) -> pd.DataFrame:
     """Extracts customer and address-related tables and merges them into one DataFrame."""
     customer_df = pd.read_sql("""
         SELECT customer_id, store_id, first_name, last_name, email, address_id
@@ -69,7 +69,7 @@ def transform_customer_data(df: pd.DataFrame) -> pd.DataFrame:
 # =======================
 # Load
 # =======================
-def load_dimension_table(df: pd.DataFrame, engine: Engine, table_name: str = 'dim_client') -> None:
+def load_dimension_table(df: pd.DataFrame, engine, table_name: str = 'dim_client') -> None:
     """Loads transformed data into the data warehouse."""
     try:
         df.to_sql(name=table_name, con=engine, if_exists='append', index=False)
@@ -78,10 +78,17 @@ def load_dimension_table(df: pd.DataFrame, engine: Engine, table_name: str = 'di
         logger.error(f"Failed to load data into `{table_name}`: {e}")
         raise
 
+
+engine = create_db_engine(source_db_config)
+raw_data = extract_customer_data(engine)
+transformed_data = transform_customer_data(raw_data)
+engine2 = create_db_engine(warehouse_db_config)
+load_dimension_table(transformed_data, engine2)
+
 # =======================
 # Airflow Tasks - WITH FILE CLEANUP
 # =======================
-def extract_task(ti):
+"""def extract_task(ti):
     engine = create_db_engine(source_db_config)
     try:
         df = extract_customer_data(engine)
@@ -114,5 +121,5 @@ def load_task(ti):
     finally:
         engine.dispose()  # Close database connection
         # Clean up the file after loading to database
-        remove_file_safely(file_path)
+        remove_file_safely(file_path)"""
 
