@@ -8,7 +8,7 @@ class DimDate(Base):
     __tablename__ = 'dim_date'
     date_key = Column(Integer, primary_key=True)
     full_date = Column(Date, nullable=False)
-    rental_month = Column(String(20), nullable=False)
+    rental_month = Column(Integer, nullable=False)
     rental_week = Column(Integer, nullable=False)
 
 class DimStore(Base):
