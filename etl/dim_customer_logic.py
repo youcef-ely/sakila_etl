@@ -1,14 +1,13 @@
 import os
 import logging
 import pandas as pd
-from dotenv import load_dotenv
-from sqlalchemy import create_engine
-from sqlalchemy.engine.base import Engine
 import pretty_errors
 
-# =======================
-# Logging configuration
-# =======================
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from src.helpers import get_config, create_db_engine, remove_file_safely
+
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -19,55 +18,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# =======================
-# Load environment variables
-# =======================
-current_dir = os.path.dirname(os.path.abspath(__file__))
-dotenv_path = os.path.join(current_dir, '..', '.env')
-load_dotenv(dotenv_path)
 
-# Source DB credentials
-source_db_config = {
-    "user": os.environ.get('MYSQL_SOURCE_USER'),
-    "password": os.environ.get('MYSQL_SOURCE_ROOT_PASSWORD'),
-    "host": os.environ.get('MYSQL_SOURCE_HOST'),
-    "port": os.environ.get('MYSQL_SOURCE_PORT'),
-    "database": os.environ.get('MYSQL_SOURCE_DATABASE'),
-}
+source_db_config = get_config('sakila')
+warehouse_db_config = get_config('sakila_dw')
 
-# Warehouse DB credentials
-warehouse_db_config = {
-    "user": os.environ.get('MYSQL_WAREHOUSE_USER'),
-    "password": os.environ.get('MYSQL_WAREHOUSE_ROOT_PASSWORD'),
-    "host": os.environ.get('MYSQL_WAREHOUSE_HOST'),
-    "port": os.environ.get('MYSQL_WAREHOUSE_PORT'),
-    "database": os.environ.get('MYSQL_WAREHOUSE_DATABASE'),
-}
 
-# =======================
-# Helper: Create SQLAlchemy Engine
-# =======================
-def create_db_engine(config: dict) -> Engine:
-    try:
-        url = f"mysql+pymysql://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}"
-        engine = create_engine(url)
-        logger.info(f"Connected to database `{config['database']}` successfully.")
-        return engine
-    except Exception as e:
-        logger.error(f"Failed to connect to database `{config['database']}`: {e}")
-        raise
-
-# =======================
-# Simple file cleanup helper
-# =======================
-def remove_file_safely(file_path):
-    """Remove file if it exists, with error handling."""
-    try:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-            logger.info(f"Removed file: {file_path}")
-    except Exception as e:
-        logger.warning(f"Could not remove file {file_path}: {e}")
 
 # =======================
 # Extract
@@ -161,17 +116,3 @@ def load_task(ti):
         # Clean up the file after loading to database
         remove_file_safely(file_path)
 
-# =======================
-# Optional: Cleanup task to run periodically
-# =======================
-def cleanup_old_files_task():
-    """Remove any leftover files in shared directory."""
-    shared_dir = '/opt/airflow/shared'
-    try:
-        for filename in os.listdir(shared_dir):
-            if filename.endswith(('.parquet', '.csv')):
-                file_path = os.path.join(shared_dir, filename)
-                remove_file_safely(file_path)
-        logger.info("Cleanup completed")
-    except Exception as e:
-        logger.error(f"Error during cleanup: {e}")
