@@ -1,4 +1,4 @@
-import os, sys
+import os
 import pretty_errors
 from typing import Dict
 from dotenv import load_dotenv
@@ -49,8 +49,8 @@ def get_config(db_name: str = 'sakila') -> Dict[str, str | None]:
 
 def create_db_engine(config: dict) -> Engine:
     try:
-        url = f"mysql+pymysql://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}"
-        engine = create_engine(url)
+        db_url = f'mysql+pymysql://{config['user']}:{config['password']}@localhost:{config['port']}/{config['database']}'
+        engine = create_engine(db_url)
         logger.info(f"Connected to database `{config['database']}` successfully.")
         return engine
     except Exception as e:

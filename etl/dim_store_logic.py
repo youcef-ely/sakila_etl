@@ -57,7 +57,7 @@ def extract_store_data(engine) -> pd.DataFrame:
 # Transform
 # =======================
 def transform_store_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Transforms customer data for the data warehouse schema."""
+    """Transforms store data for the data warehouse schema."""
     df.drop(['city_id', 'country_id', 'address_id'], axis=1, inplace=True)
     df.rename(columns={
         'store_id': 'store_key',
@@ -77,8 +77,42 @@ def load_dimension_table(df: pd.DataFrame, engine, table_name: str = 'dim_store'
         logger.error(f"Failed to load data into `{table_name}`: {e}")
         raise
 
-engine = create_db_engine(source_db_config)
-raw_data = extract_store_data(engine)
-transformed_data = transform_store_data(raw_data)
-engine2 = create_db_engine(warehouse_db_config)
-load_dimension_table(transformed_data, engine2)
+def extract_task(ti):
+    engine = create_db_engine(source_db_config)
+    file_path = '/opt/airflow/shared/store_data.parquet'
+    try:
+        df = extract_store_data(engine)
+        df.to_parquet(file_path, index=False)
+        ti.xcom_push(key='store_path', value=file_path)
+    except Exception as e:
+        remove_file_safely(file_path)  # Cleanup on failure
+        raise
+    finally:
+        engine.dispose()
+
+def transform_task(ti):
+    file_path = ti.xcom_pull(task_ids='extract_task', key='store_path')
+    
+    try:
+        df = pd.read_parquet(file_path)
+        df_transformed = transform_store_data(df)
+        out_path = '/opt/airflow/shared/store_transformed.parquet'
+        df_transformed.to_parquet(out_path)
+        ti.xcom_push(key='store_data_transformed', value=out_path)
+    
+    finally:
+        # Clean up the input file after using it
+        remove_file_safely(file_path)
+
+def load_task(ti):
+    file_path = ti.xcom_pull(task_ids='transform_task', key='store_data_transformed')
+    engine = create_db_engine(warehouse_db_config)
+    
+    try:
+        df = pd.read_parquet(file_path)
+        load_dimension_table(df, engine)
+    finally:
+        engine.dispose()  # Close database connection
+        # Clean up the file after loading to database
+        remove_file_safely(file_path)
+

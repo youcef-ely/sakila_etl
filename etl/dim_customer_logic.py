@@ -79,24 +79,21 @@ def load_dimension_table(df: pd.DataFrame, engine, table_name: str = 'dim_client
         raise
 
 
-engine = create_db_engine(source_db_config)
-raw_data = extract_customer_data(engine)
-transformed_data = transform_customer_data(raw_data)
-engine2 = create_db_engine(warehouse_db_config)
-load_dimension_table(transformed_data, engine2)
-
 # =======================
 # Airflow Tasks - WITH FILE CLEANUP
 # =======================
-"""def extract_task(ti):
+def extract_task(ti):
     engine = create_db_engine(source_db_config)
+    file_path = '/opt/airflow/shared/customer_data.parquet'
     try:
         df = extract_customer_data(engine)
-        file_path = '/opt/airflow/shared/customer_data.parquet'
         df.to_parquet(file_path, index=False)
         ti.xcom_push(key='customer_path', value=file_path)
+    except Exception as e:
+        remove_file_safely(file_path)  # Cleanup on failure
+        raise
     finally:
-        engine.dispose()  # Close database connection
+        engine.dispose()
 
 def transform_task(ti):
     file_path = ti.xcom_pull(task_ids='extract_task', key='customer_path')
@@ -107,6 +104,7 @@ def transform_task(ti):
         out_path = '/opt/airflow/shared/customer_transformed.parquet'
         df_transformed.to_parquet(out_path)
         ti.xcom_push(key='customer_data_transformed', value=out_path)
+    
     finally:
         # Clean up the input file after using it
         remove_file_safely(file_path)
@@ -121,5 +119,5 @@ def load_task(ti):
     finally:
         engine.dispose()  # Close database connection
         # Clean up the file after loading to database
-        remove_file_safely(file_path)"""
+        remove_file_safely(file_path)
 

@@ -131,9 +131,42 @@ def load_dimension_table(df: pd.DataFrame, engine, table_name: str = 'fact_renta
         raise
 
 
-engine = create_db_engine(source_db_config)
-rental_data = extract_rental_data(engine)
-engine2 = create_db_engine(warehouse_db_config)
-data = transform_rental_data(rental_data, engine2)
+def extract_task(ti):
+    engine = create_db_engine(source_db_config)
+    file_path = '/opt/airflow/shared/rental_data.parquet'
+    try:
+        df = extract_rental_data(engine)
+        df.to_parquet(file_path, index=False)
+        ti.xcom_push(key='rental_path', value=file_path)
+    except Exception as e:
+        remove_file_safely(file_path)  # Cleanup on failure
+        raise
+    finally:
+        engine.dispose()
 
-load_dimension_table(data, engine2)
+def transform_task(ti):
+    file_path = ti.xcom_pull(task_ids='extract_task', key='rental_path')
+    
+    try:
+        df = pd.read_parquet(file_path)
+        df_transformed = transform_rental_data(df)
+        out_path = '/opt/airflow/shared/rental_transformed.parquet'
+        df_transformed.to_parquet(out_path)
+        ti.xcom_push(key='rental_data_transformed', value=out_path)
+    
+    finally:
+        # Clean up the input file after using it
+        remove_file_safely(file_path)
+
+def load_task(ti):
+    file_path = ti.xcom_pull(task_ids='rental_transform_task', key='rental_data_transformed')
+    engine = create_db_engine(warehouse_db_config)
+    
+    try:
+        df = pd.read_parquet(file_path)
+        load_dimension_table(df, engine)
+    finally:
+        engine.dispose()  # Close database connection
+        # Clean up the file after loading to database
+        remove_file_safely(file_path)
+

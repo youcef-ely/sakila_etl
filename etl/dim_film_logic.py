@@ -52,7 +52,7 @@ def extract_film_data(engine) -> pd.DataFrame:
 # Transform
 # =======================
 def transform_film_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Transforms customer data for the data warehouse schema."""
+    """Transforms film data for the data warehouse schema."""
     df.drop(['category_id'], axis=1, inplace=True)
     df.rename(columns={
         'name': 'category',
@@ -74,9 +74,42 @@ def load_dimension_table(df: pd.DataFrame, engine, table_name: str = 'dim_film')
         raise
 
 
-engine = create_db_engine(source_db_config)
-raw_data = extract_film_data(engine)
-transformed_data = transform_film_data(raw_data)
-print(transformed_data)
-engine2 = create_db_engine(warehouse_db_config)
-load_dimension_table(transformed_data, engine2)
+def extract_task(ti):
+    engine = create_db_engine(source_db_config)
+    file_path = '/opt/airflow/shared/film_data.parquet'
+    try:
+        df = extract_film_data(engine)
+        df.to_parquet(file_path, index=False)
+        ti.xcom_push(key='film_path', value=file_path)
+    except Exception as e:
+        remove_file_safely(file_path)  # Cleanup on failure
+        raise
+    finally:
+        engine.dispose()
+
+def transform_task(ti):
+    file_path = ti.xcom_pull(task_ids='extract_task', key='film_path')
+    
+    try:
+        df = pd.read_parquet(file_path)
+        df_transformed = transform_film_data(df)
+        out_path = '/opt/airflow/shared/film_transformed.parquet'
+        df_transformed.to_parquet(out_path)
+        ti.xcom_push(key='date_data_transformed', value=out_path)
+    
+    finally:
+        # Clean up the input file after using it
+        remove_file_safely(file_path)
+
+def load_task(ti):
+    file_path = ti.xcom_pull(task_ids='date_transform_task', key='date_data_transformed')
+    engine = create_db_engine(warehouse_db_config)
+    
+    try:
+        df = pd.read_parquet(file_path)
+        load_dimension_table(df, engine)
+    finally:
+        engine.dispose()  # Close database connection
+        # Clean up the file after loading to database
+        remove_file_safely(file_path)
+
