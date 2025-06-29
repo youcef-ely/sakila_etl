@@ -1,8 +1,6 @@
 import pretty_errors
-
 from models import Base
-from dotenv import load_dotenv
-from helpers import get_config, create_db_engine
+from src import get_config, create_db_engine
 
 
 

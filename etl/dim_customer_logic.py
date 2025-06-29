@@ -1,12 +1,8 @@
-import os, sys
 import logging
 import pandas as pd
 import pretty_errors
 
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from src.helpers import get_config, create_db_engine, remove_file_safely
-
+from etl import BaseETL
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,106 +14,89 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+class CustomerETL(BaseETL):
+    """ETL process for the customer dimension table."""
 
-source_db_config = get_config('sakila')
-warehouse_db_config = get_config('sakila_dw')
+    def __init__(self):
+        super().__init__()
 
+    def get_table_name(self) -> str:
+        """Returns the target table name."""
+        return 'dim_client'
 
+    def extract_data(self) -> pd.DataFrame:
+        """Extracts customer and address-related tables and merges them into one DataFrame."""
+        try:
+            logger.info("Starting customer data extraction...")
+            
+            # Extract customer data
+            customer_df = pd.read_sql("""
+                SELECT customer_id, store_id, first_name, last_name, email, address_id
+                FROM customer
+            """, con=self.source_engine)
+            logger.info(f"Extracted {len(customer_df)} customer records")
 
-# =======================
-# Extract
-# =======================
-def extract_customer_data(engine) -> pd.DataFrame:
-    """Extracts customer and address-related tables and merges them into one DataFrame."""
-    customer_df = pd.read_sql("""
-        SELECT customer_id, store_id, first_name, last_name, email, address_id
-        FROM customer
-    """, con=engine)
+            # Extract address data
+            address_df = pd.read_sql("""
+                SELECT address_id, city_id, district
+                FROM address
+            """, con=self.source_engine)
+            logger.info(f"Extracted {len(address_df)} address records")
 
-    address_df = pd.read_sql("""
-        SELECT address_id, city_id, district
-        FROM address
-    """, con=engine)
+            # Extract city data
+            city_df = pd.read_sql("""
+                SELECT city_id, city, country_id
+                FROM city
+            """, con=self.source_engine)
+            logger.info(f"Extracted {len(city_df)} city records")
 
-    city_df = pd.read_sql("""
-        SELECT city_id, city, country_id
-        FROM city
-    """, con=engine)
+            # Extract country data
+            country_df = pd.read_sql("""
+                SELECT country_id, country
+                FROM country
+            """, con=self.source_engine)
+            logger.info(f"Extracted {len(country_df)} country records")
 
-    country_df = pd.read_sql("""
-        SELECT country_id, country
-        FROM country
-    """, con=engine)
+            # Merge all data
+            full_address = (address_df
+                           .merge(city_df, on='city_id')
+                           .merge(country_df, on='country_id'))
+            
+            merged_df = customer_df.merge(full_address, on='address_id')
+            logger.info(f"Successfully merged data: {len(merged_df)} final records")
+            
+            return merged_df
+            
+        except Exception as e:
+            logger.error(f"Failed to extract customer data: {e}")
+            raise
 
-    full_address = address_df.merge(city_df, on='city_id').merge(country_df, on='country_id')
-    merged_df = customer_df.merge(full_address, on='address_id')
-    return merged_df
+    def transform_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Transforms customer data for the data warehouse schema."""
+        try:
+            logger.info("Starting customer data transformation...")
+            
+            # Create full name
+            df['full_name'] = df['first_name'] + ' ' + df['last_name']
+            
+            # Drop unnecessary columns
+            df.drop(['first_name', 'last_name', 'city_id', 'country_id', 'address_id'], 
+                   axis=1, inplace=True)
+            
+            # Rename columns for warehouse schema
+            df.rename(columns={
+                'customer_id': 'customer_key',
+                'district': 'state'
+            }, inplace=True)
+            
+            # Add any additional transformations here
+            df['email'] = df['email'].str.lower().str.strip()  # Clean email
+            
+            logger.info("Customer data transformation completed successfully")
+            return df
+            
+        except Exception as e:
+            logger.error(f"Failed to transform customer data: {e}")
+            raise
 
-# =======================
-# Transform
-# =======================
-def transform_customer_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Transforms customer data for the data warehouse schema."""
-    df['full_name'] = df['first_name'] + ' ' + df['last_name']
-    df.drop(['first_name', 'last_name', 'city_id', 'country_id', 'address_id'], axis=1, inplace=True)
-    df.rename(columns={
-        'customer_id': 'customer_key',
-        'district': 'state'
-    }, inplace=True)
-    return df
-
-# =======================
-# Load
-# =======================
-def load_dimension_table(df: pd.DataFrame, engine, table_name: str = 'dim_client') -> None:
-    """Loads transformed data into the data warehouse."""
-    try:
-        df.to_sql(name=table_name, con=engine, if_exists='append', index=False)
-        logger.info(f"Data loaded into `{table_name}` successfully.")
-    except Exception as e:
-        logger.error(f"Failed to load data into `{table_name}`: {e}")
-        raise
-
-
-# =======================
-# Airflow Tasks - WITH FILE CLEANUP
-# =======================
-def extract_task(ti):
-    engine = create_db_engine(source_db_config)
-    file_path = '/opt/airflow/shared/customer_data.parquet'
-    try:
-        df = extract_customer_data(engine)
-        df.to_parquet(file_path, index=False)
-        ti.xcom_push(key='customer_path', value=file_path)
-    except Exception as e:
-        remove_file_safely(file_path)  # Cleanup on failure
-        raise
-    finally:
-        engine.dispose()
-
-def transform_task(ti):
-    file_path = ti.xcom_pull(task_ids='extract_task', key='customer_path')
-    
-    try:
-        df = pd.read_parquet(file_path)
-        df_transformed = transform_customer_data(df)
-        out_path = '/opt/airflow/shared/customer_transformed.parquet'
-        df_transformed.to_parquet(out_path)
-        ti.xcom_push(key='customer_data_transformed', value=out_path)
-    
-    finally:
-        # Clean up the input file after using it
-        remove_file_safely(file_path)
-
-def load_task(ti):
-    file_path = ti.xcom_pull(task_ids='transform_task', key='customer_data_transformed')
-    engine = create_db_engine(warehouse_db_config)
-    
-    try:
-        df = pd.read_parquet(file_path)
-        load_dimension_table(df, engine)
-    finally:
-        engine.dispose()  # Close database connection
-        # Clean up the file after loading to database
-        remove_file_safely(file_path)
 
