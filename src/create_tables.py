@@ -1,6 +1,6 @@
 import pretty_errors
 from models import Base
-from src import get_config, create_db_engine
+from helpers import get_config, create_db_engine
 
 
 

@@ -20,6 +20,7 @@ class CustomerETL(BaseETL):
     def __init__(self):
         super().__init__()
 
+    
     def get_table_name(self) -> str:
         """Returns the target table name."""
         return 'dim_client'

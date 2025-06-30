@@ -4,3 +4,17 @@ from .dim_date_logic import DateETL
 from .dim_store_logic import StoreETL
 from .fact_rental_logic import RentalETL
 from .dim_customer_logic import CustomerETL
+
+
+
+__all__ = [
+    'BaseETL',
+    'FilmETL', 
+    'DateETL',
+    'StoreETL',
+    'RentalETL',
+    'CustomerETL'
+]
+
+
+print('etl package initialized')
